@@ -1,0 +1,5 @@
+[core]
+    remote = myserver
+    autostage = true
+['remote "myserver"']
+    url = ssh://mlops@192.168.28.32//home/mlops/MLOPS_CHURN_DETECTION/dvc_storage
