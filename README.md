@@ -36,17 +36,33 @@ docker compose build
 
 ## 🏃 Hướng dẫn chạy (How to run)
 
-### Cách 1: Chạy Tự động (Khuyên dùng)
-Dự án có sẵn một script tự động kéo data, build môi trường và chạy huấn luyện. Bạn chỉ cần cấp quyền và thực thi:
+### 1. Kéo data
 ```bash
-chmod +x run_pipeline.sh
-./run_pipeline.sh
+dvc pull
 ```
 
-### Cách 2: Chạy Thủ công
-Vì dữ liệu lấy từ DVC đã là phiên bản hoàn thiện nhất (đã qua làm sạch và Feature Engineering), bạn chỉ cần chạy bước Huấn luyện mô hình (Training):
+### 2. Khởi động monitoring stack
+```bash
+docker compose up -d prometheus grafana metrics-server
+```
+
+### 3. Chạy training
 ```bash
 docker compose run --rm mlops-pipeline python model/train.py
+```
+
+### 4. Xem dashboard
+
+Mở browser:
+
+```text
+http://localhost:3000
+```
+
+Đăng nhập:
+
+```text
+admin / admin123
 ```
 
 ---
