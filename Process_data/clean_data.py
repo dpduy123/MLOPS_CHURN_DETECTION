@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 
 dfs = []
 all_columns = set()
@@ -10,7 +11,7 @@ all_columns = set()
 for i in range(1, 11):
 
     df = pd.read_csv(
-        f'Data/Split_data_raw/period_{i}.csv'
+        f'Data/period_{i}.csv'
     )
 
     # Remove duplicates
@@ -74,6 +75,7 @@ for i, df in enumerate(dfs):
     )
 
     # Save cleaned file
+    os.makedirs('Data/data_after_cleaning', exist_ok=True)
     df.to_csv(
         f'Data/data_after_cleaning/period_{i+1}.csv',
         index=False
