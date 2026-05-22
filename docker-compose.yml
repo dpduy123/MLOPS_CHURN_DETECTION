@@ -1,17 +1,82 @@
 version: '3.8'
 
 services:
+
+  # ── Training pipeline (chạy 1 lần rồi thoát) ─────────────────────────────
   mlops-pipeline:
     build: .
-    # Dùng image name tự định nghĩa
     image: cs317-mlops-churn-detection:latest
     volumes:
-      # Mount thư mục Data từ máy ngoài vào trong container để không làm nặng image
       - ./Data:/app/Data
-      # Mount thư mục save_model để khi train xong lấy được file .pkl ra ngoài
       - ./save_model:/app/save_model
-    # Nếu chạy trên server, có thể cấu hình tài nguyên nếu cần
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       memory: 2G
+    depends_on:
+      - metrics-server
+    networks:
+      - mlops-net
+
+  # ── Metrics server (luôn chạy, expose /metrics cho Prometheus) ────────────
+  metrics-server:
+    build: .
+    image: cs317-mlops-churn-detection:latest
+    command: ["python", "model/metrics_server.py"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./save_model:/app/save_model   # đọc metrics.json do train.py ghi
+    restart: unless-stopped
+    networks:
+      - mlops-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── Prometheus ────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+    restart: unless-stopped
+    depends_on:
+      - metrics-server
+    networks:
+      - mlops-net
+
+  # ── Grafana ───────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_DOMAIN=localhost
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - mlops-net
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  mlops-net:
+    driver: bridge

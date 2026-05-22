@@ -1,0 +1,48 @@
+{
+  "pipeline": {
+    "status": 1,
+    "runs_total": 1,
+    "last_run_ts": 1779477944.6481686,
+    "train_samples": 352665,
+    "test_samples": 88167,
+    "feature_count": 17,
+    "total_duration_seconds": 209.424
+  },
+  "models": {
+    "logistic": {
+      "accuracy": 0.9553120782152053,
+      "f1_score": 0.9603709440566475,
+      "precision": 0.9659868074946381,
+      "recall": 0.95482,
+      "duration_seconds": 4.157
+    },
+    "poly": {
+      "accuracy": 0.9839622534508377,
+      "f1_score": 0.9858148913545073,
+      "precision": 0.9889698482347732,
+      "recall": 0.98268,
+      "duration_seconds": 43.772
+    },
+    "random_forest": {
+      "accuracy": 0.9750473533181349,
+      "f1_score": 0.9776195320447609,
+      "precision": 0.994824016563147,
+      "recall": 0.961,
+      "duration_seconds": 12.699
+    },
+    "knn": {
+      "accuracy": 0.9665294271099164,
+      "f1_score": 0.9696627018802751,
+      "precision": 0.9976307828993294,
+      "recall": 0.94322,
+      "duration_seconds": 1.143
+    },
+    "lgbm": {
+      "accuracy": 0.9987183413295224,
+      "f1_score": 0.9988687443061799,
+      "precision": 0.9999799555012127,
+      "recall": 0.99776,
+      "duration_seconds": 7.663
+    }
+  }
+}
