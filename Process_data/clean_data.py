@@ -10,7 +10,7 @@ all_columns = set()
 for i in range(1, 11):
 
     df = pd.read_csv(
-        f'C:\\work\\Churn\\Data\\Split_data_raw\\period_{i}.csv'
+        f'Data/Split_data_raw/period_{i}.csv'
     )
 
     # Remove duplicates
@@ -75,7 +75,7 @@ for i, df in enumerate(dfs):
 
     # Save cleaned file
     df.to_csv(
-        f'C:\\work\\Churn\\Data\\data_after_cleaning\\period_{i+1}.csv',
+        f'Data/data_after_cleaning/period_{i+1}.csv',
         index=False
     )
 
