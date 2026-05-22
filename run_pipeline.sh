@@ -14,13 +14,12 @@ echo "🐳 2. Đảm bảo Docker Image đã được build..."
 docker compose build
 
 echo "------------------------------------------------------"
-echo "🧹 3. Đang chạy làm sạch dữ liệu (Data Cleaning)..."
-# Thêm cờ --rm để tự động xóa container tạm thời sau khi chạy xong, giúp nhẹ máy
-docker compose run --rm mlops-pipeline python Process_data/clean_data.py
+echo "🧹 3. (Bỏ qua) Dữ liệu từ DVC đã được làm sạch sẵn!"
+# docker compose run --rm mlops-pipeline python Process_data/clean_data.py
 
 echo "------------------------------------------------------"
-echo "⚙️ 4. Đang chạy trích xuất đặc trưng (Feature Engineering)..."
-docker compose run --rm mlops-pipeline python Process_data/Feture_Engineering.py
+echo "⚙️ 4. (Bỏ qua) Dữ liệu từ DVC đã có sẵn các đặc trưng Feature Engineering!"
+# docker compose run --rm mlops-pipeline python Process_data/Feture_Engineering.py
 
 echo "------------------------------------------------------"
 echo "🧠 5. Đang chạy huấn luyện mô hình (Model Training)..."

@@ -4,7 +4,7 @@ services:
   mlops-pipeline:
     build: .
     # Dùng image name tự định nghĩa
-    image: mlops-churn-detection:latest
+    image: cs317-mlops-churn-detection:latest
     volumes:
       # Mount thư mục Data từ máy ngoài vào trong container để không làm nặng image
       - ./Data:/app/Data

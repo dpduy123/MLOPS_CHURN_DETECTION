@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from arch import LogisticModel, PolyModel, RandomForestModel, KNNModel, LGBMModel
 from dataset import ChurnDataset
 
-DATA_ROOT = Path("Data/Data_v1")
+DATA_ROOT = Path("Data")
 SAVE_ROOT = Path("save_model")
 
 
