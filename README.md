@@ -19,19 +19,6 @@ git clone https://github.com/dpduy123/MLOPS_CHURN_DETECTION.git
 cd MLOPS_CHURN_DETECTION
 ```
 
-**2. Lấy dữ liệu (Data)**
-Dữ liệu lớn của dự án không nằm trên Github mà được quản lý tách biệt bằng DVC. Chạy lệnh sau để kéo dữ liệu đã qua xử lý chuẩn bị về thư mục \`Data/\`:
-```bash
-dvc pull
-```
-
-**3. Khởi tạo môi trường (Environment)**
-Tạo Docker image chứa Python và các thư viện cần thiết:
-```bash
-docker compose build
-```
-*(💡 Ghi chú: Nếu hệ thống của bạn xài bản cũ, hãy thêm dấu gạch ngang thành `docker-compose build`)*
-
 ---
 
 ## 🏃 Hướng dẫn chạy (How to run)
