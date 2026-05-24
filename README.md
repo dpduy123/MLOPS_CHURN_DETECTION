@@ -19,10 +19,37 @@ git clone https://github.com/dpduy123/MLOPS_CHURN_DETECTION.git
 cd MLOPS_CHURN_DETECTION
 ```
 
+**2. Lấy dữ liệu (Data)**
+Dữ liệu lớn của dự án không nằm trên Github mà được quản lý tách biệt bằng DVC. Chạy lệnh sau để kéo dữ liệu đã qua xử lý chuẩn bị về thư mục \`Data/\`:
+```bash
+dvc pull
+```
+
+**3. Khởi tạo môi trường (Environment)**
+Tạo Docker image chứa Python và các thư viện cần thiết:
+```bash
+docker compose build
+```
+*(💡 Ghi chú: Nếu hệ thống của bạn xài bản cũ, hãy thêm dấu gạch ngang thành `docker-compose build`)*
+
 ---
 
 ## 🏃 Hướng dẫn chạy (How to run)
 
+### Cách 1: Chạy Tự động (Khuyên dùng)
+Dự án có sẵn một script tự động kéo data, build môi trường và chạy huấn luyện. Bạn chỉ cần cấp quyền và thực thi:
+```bash
+chmod +x run_pipeline.sh
+./run_pipeline.sh
+```
+
+### Cách 2: Chạy Thủ công
+Vì dữ liệu lấy từ DVC đã là phiên bản hoàn thiện nhất (đã qua làm sạch và Feature Engineering), bạn chỉ cần chạy bước Huấn luyện mô hình (Training):
+```bash
+docker compose run --rm mlops-pipeline python model/train.py
+```
+
+## 🏃 Hướng dẫn khởi động monitoring (How to run)
 ### 1. Kéo data
 ```bash
 dvc pull
@@ -51,6 +78,8 @@ http://localhost:3000
 ```text
 admin / admin123
 ```
+
+---
 
 ---
 
