@@ -1,0 +1,27 @@
+# Git
+.git
+.gitignore
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environments
+.env
+.venv
+venv/
+ENV/
+env.bak/
+
+# Data and Models (Không copy data lớn vào image)
+Data/
+save_model/
+*.csv
+*.pkl
+
+# IDE / OS files
+.vscode/
+.idea/
+.DS_Store

@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  mlops-pipeline:
+    build: .
+    # Dùng image name tự định nghĩa
+    image: cs317-mlops-churn-detection:latest
+    volumes:
+      # Mount thư mục Data từ máy ngoài vào trong container để không làm nặng image
+      - ./Data:/app/Data
+      # Mount thư mục save_model để khi train xong lấy được file .pkl ra ngoài
+      - ./save_model:/app/save_model
+    # Nếu chạy trên server, có thể cấu hình tài nguyên nếu cần
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       memory: 2G
