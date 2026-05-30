@@ -10,49 +10,24 @@ all_columns = set()
 # =========================
 for i in range(1, 11):
 
-    df = pd.read_csv(
-        f'Data/period_{i}.csv'
-    )
-
-    # Remove duplicates
-    df = df.drop_duplicates()
+    df = pd.read_csv(f'data/period_{i}.csv')
+    df = df.drop_duplicates()   # Remove duplicates
 
     # Check null
     print(f'period_{i}')
     print(df.isnull().sum())
     print('-' * 50)
 
-    # Drop null
-    df = df.dropna()
+    df = df.dropna()            # Drop null
 
-    # Convert datatype
-    df['CustomerID'] = df['CustomerID'].astype('int64')
-
-    int_columns = [
-        'Age',
-        'Tenure',
-        'Support Calls',
-        'Last Interaction'
-    ]
-
-    df[int_columns] = df[int_columns].astype(int)
-
-    # One-hot encoding
-    str_columns = [
-        'Gender',
-        'Subscription Type',
-        'Contract Length'
-    ]
-
-    df = pd.get_dummies(
-        df,
-        columns=str_columns,
-        drop_first=True
-    )
-
-    # Bool -> int
+    int_columns = ['Age', 'Tenure', 'Support Calls', 'Last Interaction']
+    str_columns = ['Gender', 'Subscription Type', 'Contract Length']
     dummy_cols = df.select_dtypes(bool).columns
-    df[dummy_cols] = df[dummy_cols].astype(int)
+
+    df['CustomerID'] = df['CustomerID'].astype('int64')
+    df[int_columns] = df[int_columns].astype(int)
+    df = pd.get_dummies(df, columns=str_columns, drop_first=True)   # One-hot encoding
+    df[dummy_cols] = df[dummy_cols].astype(int)                     # Bool -> int
 
     # Save dataframe temporarily
     dfs.append(df)
