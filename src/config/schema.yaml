@@ -1,0 +1,14 @@
+features:
+  categorical:
+    - Gender
+    - Subscription Type
+    - Contract Length
+  numerical:
+    - Age
+    - Tenure
+    - Usage Frequency
+    - Support Calls
+    - Payment Delay
+    - Total Spend
+    - Last Interaction
+target: Churn
