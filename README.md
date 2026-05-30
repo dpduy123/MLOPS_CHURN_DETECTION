@@ -8,6 +8,17 @@ Dự án sử dụng **DVC** để quản lý phiên bản dữ liệu và **Doc
 - [Git](https://git-scm.com/)
 - [DVC](https://dvc.org/) (Sẽ được cài sẵn nếu bạn dùng \`pip install -r requirements.txt\`)
 
+## 🗺 Project structure
+
+```text
+MLOPS_CHURN_DETECTION/
+├── .dvc
+├── 📂 data/
+|    ├── raw/
+|    ├── processed/
+|    ├── raw.dvc
+|    ├── processed.dvc
+```
 ---
 
 ## 🚀 Cài đặt (Setup)
