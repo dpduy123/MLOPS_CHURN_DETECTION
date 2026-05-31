@@ -3,12 +3,12 @@ from pathlib import Path
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, FunctionTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.base import BaseEstimator, TransformerMixin, _SetOutputMixin
 from src.utils.config_loader import load_data_schema 
 
 # Lưu ý: Trong file này, Schema đã được load rồi chứ không phải là directory. Hãy đảm bảo rằng bạn đã load schema trước khi gọi hàm.
 # Định nghĩa Class ép kiểu Int ở ngoài cùng (Cấp module)
-class IntCaster(BaseEstimator, TransformerMixin):
+class IntCaster(BaseEstimator, TransformerMixin, _SetOutputMixin):
     def __init__(self, int_cols):
         self.int_cols = int_cols
     
@@ -19,7 +19,6 @@ class IntCaster(BaseEstimator, TransformerMixin):
         X = X.copy()
         for col in self.int_cols:
             if col in X.columns: X[col] = X[col].fillna(0).astype(int)
-                
         return X
     
 def create_pre_processor_structure(schema=None, debug=False):
@@ -44,6 +43,7 @@ def create_pre_processor_structure(schema=None, debug=False):
         ('cat_encoder', cat_encoder),
         ('int_caster', IntCaster(int_cols=int_cols)) 
     ])
+
     
     return pipeline
 
@@ -57,6 +57,7 @@ def get_pre_processor(data, schema=None, save_path=None, debug=False):
 
     clean_processor = create_pre_processor_structure(schema, debug=debug)
     clean_processor.fit(data)
+
 
     if save_path:
         path = Path(save_path)
@@ -75,15 +76,18 @@ if __name__ == "__main__":
     outdata_path = "data/unit_tests/preprocess/period_1.csv"
     
     # Gọi hàm và truyền data vào để fit
-    processor = get_pre_processor(data=indata_path, save_path=processor_save_path, debug=True)
+    indata = pd.read_csv(indata_path)
+    indata.drop(columns=["CustomerID", "Churn"], inplace=True)
+    processor = get_pre_processor(data=indata, save_path=processor_save_path, debug=True)
     print("Pipeline đã sẵn sàng và đã được fit.")
-
+    
     # Load lại
     loaded_processor = joblib.load(processor_save_path)
         
     # Transform
     df = pd.read_csv(indata_path)
     transformed_df = loaded_processor.transform(df)
+    transformed_df[["CustomerID", "Churn"]] = df[["CustomerID", "Churn"]]
     
     # Lưu kết quả
     os.makedirs(os.path.dirname(outdata_path), exist_ok=True)
