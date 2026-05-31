@@ -1,0 +1,2 @@
+Download 2 file customer_churn_dataset-testing-master.csv và customer_churn_dataset-training-master.csv từ link sau: https://www.kaggle.com/datasets/muhammadshahidazeem/customer-churn-dataset/data?select=customer_churn_dataset-training-master.csv
+rồi đưa 2 file đó vào thư mục hiện tại (data/org/)
