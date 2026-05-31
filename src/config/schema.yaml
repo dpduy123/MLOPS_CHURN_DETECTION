@@ -1,14 +1,18 @@
 features:
+  id:
+    - CustomerID
   categorical:
     - Gender
     - Subscription Type
     - Contract Length
   numerical:
-    - Age
-    - Tenure
-    - Usage Frequency
-    - Support Calls
-    - Payment Delay
-    - Total Spend
-    - Last Interaction
+    continuous:
+      - Usage Frequency
+      - Payment Delay
+      - Total Spend
+    discrete:
+      - Age
+      - Tenure
+      - Support Calls
+      - Last Interaction
 target: Churn
