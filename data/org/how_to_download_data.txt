@@ -1,0 +1,7 @@
+Download 2 file customer_churn_dataset-testing-master.csv và customer_churn_dataset-training-master.csv 
+từ link sau: https://www.kaggle.com/datasets/muhammadshahidazeem/customer-churn-dataset/data?select=customer_churn_dataset-training-master.csv
+rồi đưa 2 file đó vào thư mục hiện tại (data/org/).
+
+Sau đó, chạy "python data/org/split_data.py" để tạo các file period_{i} trong folder data/raw
+như kịch bản data raw đổ về trong thực tế.
+

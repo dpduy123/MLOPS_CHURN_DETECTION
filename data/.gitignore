@@ -1,0 +1,6 @@
+/raw
+/processed
+/unit_tests
+/org/* 
+!/org/how_to_download_data.txt
+!/org/split_data.py
