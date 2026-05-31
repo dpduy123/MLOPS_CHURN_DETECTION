@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 import os  
 
-df_train = pd.read_csv('data/raw/customer_churn_dataset-training-master.csv')
+df_train = pd.read_csv('data/org/customer_churn_dataset-training-master.csv')
 
-output_dir = 'data/raw/train_splits'
+output_dir = 'data/raw'
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
