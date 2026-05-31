@@ -6,7 +6,7 @@ from pathlib import Path
 
 def test_model_with_json():
     mlflow.set_tracking_uri("http://localhost:5100")
-    MODEL_URI = "models:/Churn_Predict@champion"
+    MODEL_URI = "models:/Churn_Predict@champion" # hoặc "models:/<Model-ID>" hoặc "models:/Churn_Predict/<version>"
 
     print(f"--- Đang tải model từ: {MODEL_URI} ---")
     model = mlflow.pyfunc.load_model(MODEL_URI)
