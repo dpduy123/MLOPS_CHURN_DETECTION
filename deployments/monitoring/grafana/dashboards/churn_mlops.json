@@ -1,0 +1,163 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "annotations": { "list": [] },
+  "description": "Churn Prediction MLOps – BentoML + Evidently + LGTM",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+
+    { "type": "row", "title": "🚦 Service Health", "gridPos": {"h":1,"w":24,"x":0,"y":0}, "collapsed": false, "id": 1 },
+
+    {
+      "id": 2, "type": "stat", "title": "Service Status",
+      "gridPos": {"h":4,"w":4,"x":0,"y":1},
+      "targets": [{ "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "up{job=\"bentoml_churn\"}", "legendFormat": "BentoML" }],
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto" },
+      "fieldConfig": { "defaults": { "mappings": [{"options":{"0":{"color":"red","text":"DOWN"},"1":{"color":"green","text":"UP"}},"type":"value"}], "thresholds": {"mode":"absolute","steps":[{"color":"red","value":null},{"color":"green","value":1}]} } }
+    },
+
+    {
+      "id": 3, "type": "stat", "title": "Total Requests (1h)",
+      "gridPos": {"h":4,"w":4,"x":4,"y":1},
+      "targets": [{ "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "increase(churn_prediction_requests_total[1h])", "legendFormat": "requests" }],
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": {"mode":"fixed","fixedColor":"blue"} } }
+    },
+
+    {
+      "id": 4, "type": "stat", "title": "Low-Conf Streak 🚨",
+      "gridPos": {"h":4,"w":5,"x":8,"y":1},
+      "targets": [{ "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "churn_low_confidence_streak", "legendFormat": "streak" }],
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode":"absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":100},{"color":"red","value":200}] } } }
+    },
+
+    {
+      "id": 5, "type": "stat", "title": "Drift Detected",
+      "gridPos": {"h":4,"w":4,"x":13,"y":1},
+      "targets": [{ "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "evidently_dataset_drift_detected", "legendFormat": "drift" }],
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "background" },
+      "fieldConfig": { "defaults": { "mappings": [{"options":{"0":{"color":"green","text":"No Drift"},"1":{"color":"red","text":"DRIFT!"}},"type":"value"}] } }
+    },
+
+    {
+      "id": 6, "type": "stat", "title": "Mean Confidence (window)",
+      "gridPos": {"h":4,"w":4,"x":17,"y":1},
+      "targets": [{ "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "evidently_confidence_mean", "legendFormat": "mean conf" }],
+      "options": { "reduceOptions": {"calcs":["lastNotNull"]}, "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": {"mode":"absolute","steps":[{"color":"red","value":null},{"color":"yellow","value":0.6},{"color":"green","value":0.75}]} } }
+    },
+
+    { "type": "row", "title": "📈 Predictions", "gridPos": {"h":1,"w":24,"x":0,"y":5}, "collapsed": false, "id": 10 },
+
+    {
+      "id": 11, "type": "timeseries", "title": "Request Rate",
+      "gridPos": {"h":7,"w":12,"x":0,"y":6},
+      "targets": [
+        { "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "rate(churn_prediction_requests_total{endpoint=\"predict\"}[5m])", "legendFormat": "/predict" },
+        { "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "rate(churn_prediction_requests_total{endpoint=\"predict_batch\"}[5m])", "legendFormat": "/predict_batch" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": {"lineWidth":2} } }
+    },
+
+    {
+      "id": 12, "type": "timeseries", "title": "Prediction Labels Distribution",
+      "gridPos": {"h":7,"w":12,"x":12,"y":6},
+      "targets": [
+        { "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "rate(churn_prediction_labels_total{label=\"churn\"}[5m])", "legendFormat": "Rời bỏ" },
+        { "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "rate(churn_prediction_labels_total{label=\"no_churn\"}[5m])", "legendFormat": "Không rời" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+
+    { "type": "row", "title": "🎯 Confidence Scores", "gridPos": {"h":1,"w":24,"x":0,"y":13}, "collapsed": false, "id": 20 },
+
+    {
+      "id": 21, "type": "timeseries", "title": "Low-Confidence Streak Over Time",
+      "gridPos": {"h":7,"w":12,"x":0,"y":14},
+      "targets": [{ "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "churn_low_confidence_streak", "legendFormat": "streak" }],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": {"lineWidth":2}, "thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"yellow","value":100},{"color":"red","value":200}]}, "color":{"mode":"thresholds"} } },
+      "options": { "tooltip": {"mode":"single"} }
+    },
+
+    {
+      "id": 22, "type": "timeseries", "title": "Confidence P10 / Mean",
+      "gridPos": {"h":7,"w":12,"x":12,"y":14},
+      "targets": [
+        { "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "evidently_confidence_mean",  "legendFormat": "Mean" },
+        { "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "evidently_confidence_p10",   "legendFormat": "P10" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit" } }
+    },
+
+    {
+      "id": 23, "type": "heatmap", "title": "Confidence Score Heatmap",
+      "gridPos": {"h":7,"w":24,"x":0,"y":21},
+      "targets": [{ "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "rate(churn_prediction_confidence_bucket[5m])", "legendFormat": "{{le}}", "format": "heatmap" }],
+      "options": { "calculate": false, "color": {"mode":"scheme","scheme":"Oranges"}, "yAxis": {"unit":"percentunit"} }
+    },
+
+    { "type": "row", "title": "⚡ Latency", "gridPos": {"h":1,"w":24,"x":0,"y":28}, "collapsed": false, "id": 30 },
+
+    {
+      "id": 31, "type": "timeseries", "title": "P50 / P95 / P99 Latency",
+      "gridPos": {"h":7,"w":12,"x":0,"y":29},
+      "targets": [
+        { "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "histogram_quantile(0.50, rate(churn_prediction_latency_seconds_bucket[5m]))", "legendFormat": "p50" },
+        { "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "histogram_quantile(0.95, rate(churn_prediction_latency_seconds_bucket[5m]))", "legendFormat": "p95" },
+        { "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "histogram_quantile(0.99, rate(churn_prediction_latency_seconds_bucket[5m]))", "legendFormat": "p99" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+
+    {
+      "id": 32, "type": "timeseries", "title": "Batch Size Distribution",
+      "gridPos": {"h":7,"w":12,"x":12,"y":29},
+      "targets": [
+        { "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "histogram_quantile(0.50, rate(churn_prediction_batch_size_bucket[5m]))", "legendFormat": "p50 batch" },
+        { "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "histogram_quantile(0.95, rate(churn_prediction_batch_size_bucket[5m]))", "legendFormat": "p95 batch" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+
+    { "type": "row", "title": "📊 Evidently Drift", "gridPos": {"h":1,"w":24,"x":0,"y":36}, "collapsed": false, "id": 40 },
+
+    {
+      "id": 41, "type": "timeseries", "title": "Dataset Drift Score",
+      "gridPos": {"h":7,"w":12,"x":0,"y":37},
+      "targets": [{ "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "evidently_dataset_drift_score", "legendFormat": "drift share" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"yellow","value":0.2},{"color":"red","value":0.5}]}, "color":{"mode":"thresholds"} } }
+    },
+
+    {
+      "id": 42, "type": "timeseries", "title": "Missing Values Share",
+      "gridPos": {"h":7,"w":12,"x":12,"y":37},
+      "targets": [{ "datasource": {"type":"prometheus","uid":"prometheus"}, "expr": "evidently_missing_values_share", "legendFormat": "missing" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit" } }
+    },
+
+    { "type": "row", "title": "📝 Logs (Loki)", "gridPos": {"h":1,"w":24,"x":0,"y":44}, "collapsed": false, "id": 50 },
+
+    {
+      "id": 51, "type": "logs", "title": "BentoML Service Logs",
+      "gridPos": {"h":8,"w":24,"x":0,"y":45},
+      "targets": [{ "datasource": {"type":"loki","uid":"loki"}, "expr": "{service=\"churn-prediction\"}", "queryType": "range" }],
+      "options": { "showTime": true, "wrapLogMessage": true }
+    }
+
+  ],
+
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["mlops", "churn", "bentoml"],
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Churn Prediction MLOps",
+  "uid": "churn-mlops",
+  "version": 1
+}
