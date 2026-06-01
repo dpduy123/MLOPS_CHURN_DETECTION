@@ -68,7 +68,7 @@ def get_pre_processor(data, schema=None, save_path=None, debug=False):
 
     return clean_processor
 
-if __name__ == "__main__":
+def preprocess():
     # Code dùng để test nhanh khi chạy file này trực tiếp, không dùng trong pipeline chính
     # Đường dẫn dữ liệu
     indata_path = "data/raw/period_1.csv"

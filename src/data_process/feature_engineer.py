@@ -56,7 +56,7 @@ def get_fe_processor(data=None, save_path=None, debug=False):
 
     return fe_pipeline
 
-if __name__ == "__main__":
+def run_fe(): 
     import os
     # Test chạy FE Pipeline trên một phần dữ liệu đã được preprocess
     # Đường dẫn dữ liệu

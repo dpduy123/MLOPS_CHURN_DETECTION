@@ -3,5 +3,11 @@ __pycache__/
 *.pyc
 .vscode/
 
-
+simple_auth_manager_passwords.json.generated
+airflow.db-wal
+airflow.cfg
+airflow.db-shm
+airflow.db
+logs/*
 mlflow_srv/.env.dev
+Data/
