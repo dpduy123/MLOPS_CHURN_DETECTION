@@ -12,12 +12,31 @@ Dự án sử dụng **DVC** để quản lý phiên bản dữ liệu và **Doc
 
 ```text
 MLOPS_CHURN_DETECTION/
-├── .dvc
+├── .dvc/
 ├── 📂 data/
-|    ├── raw/
-|    ├── processed/
-|    ├── raw.dvc
-|    ├── processed.dvc
+|   ├── org/
+|   ├── raw/
+|   ├── processed/
+|   ├── raw.dvc
+|   ├── processed.dvc
+├── src/
+│   ├── config/
+│   ├── data_process/
+│   ├── models/
+│   ├── train/
+│   ├── utils/
+├── deployments/
+    ├── docker-compose.yml
+    ├── bentoml/
+    │   ├── service.py
+    │   └── bentofile.yaml
+    │   └── requirements.txt
+    ├── monitoring/
+        ├── grafana/          # Chứa dashboard (JSON files)
+        ├── prometheus/       # Chứa prometheus.yml
+        └── loki/             # Chứa loki-config.yaml
+
+
 ```
 ---
 
