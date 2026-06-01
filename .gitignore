@@ -10,4 +10,4 @@ airflow.db-shm
 airflow.db
 logs/*
 mlflow_srv/.env.dev
-Data/
+*.csv
