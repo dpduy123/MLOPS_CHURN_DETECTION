@@ -1,0 +1,14 @@
+apiVersion: 1
+contactPoints:
+  - uid: smtp_cp
+    name: SMTP
+    type: smtp
+    isDefault: true
+    settings:
+      addresses: ${ALERT_EMAILS}
+      smarthost: ${SMTP_HOST}:${SMTP_PORT}
+      fromAddress: ${SMTP_FROM}
+      auth:
+        username: ${SMTP_USER}
+        password: ${SMTP_PASSWORD}
+      requireTLS: true

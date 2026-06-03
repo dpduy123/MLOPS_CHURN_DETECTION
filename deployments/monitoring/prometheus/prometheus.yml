@@ -17,19 +17,19 @@ scrape_configs:
   - job_name: "bentoml_churn"
     metrics_path: "/metrics"
     static_configs:
-      - targets: ["bentoml:3000"]
+      - targets: ["churn-prediction:3000"]
     relabel_configs:
       - target_label: service
         replacement:  churn-prediction
 
   # Evidently Monitor
-  - job_name: "evidently_monitor"
-    metrics_path: "/metrics"
-    static_configs:
-      - targets: ["evidently-monitor:8001"]
-    relabel_configs:
-      - target_label: service
-        replacement:  evidently-monitor
+  #- job_name: "evidently_monitor"
+  #  metrics_path: "/metrics"
+  #  static_configs:
+  #    - targets: ["evidently-monitor:8001"]
+  #  relabel_configs:
+  #    - target_label: service
+  #      replacement:  evidently-monitor
 
   # Prometheus itself
   - job_name: "prometheus"
@@ -39,4 +39,4 @@ scrape_configs:
   # Grafana
   - job_name: "grafana"
     static_configs:
-      - targets: ["grafana:3001"]
+      - targets: ["grafana:3000"]
