@@ -1,19 +1,20 @@
 #!/bin/bash
 
-# Lấy đường dẫn tuyệt đối của thư mục chứa script này
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-echo $SCRIPT_DIR
+set -e # Dừng script nếu có lệnh nào bị lỗi
 
-# Trỏ tới file start_dev.sh trong mlflow_srv
-START_SCRIPT="$SCRIPT_DIR/../mlflow_srv/start_dev.sh"
-echo "Đường dẫn tới script khởi động: $START_SCRIPT"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MLFLOW_SRV_DIR="$PROJECT_ROOT/mlflow_srv"
 
-# Kiểm tra xem file có tồn tại không trước khi chạy
-if [ -f "$START_SCRIPT" ]; then
-    echo "🚀 Đang chuyển hướng tới script khởi động..."     # Chuyển thư mục làm việc về mlflow_srv để start_dev.sh chạy đúng context
-    cd "$(dirname "$START_SCRIPT")"
-    docker compose --env-file .env.dev -f docker-compose.dev.yml down -v
-else
-    echo "❌ Lỗi: Không tìm thấy file start_dev.sh tại $START_SCRIPT"
+echo "🚀 Đang chuyển hướng tới thư mục: $MLFLOW_SRV_DIR"
+cd "$MLFLOW_SRV_DIR"
+
+if [ ! -f ".env.dev" ]; then
+    echo "Lỗi: Không tìm thấy file .env.dev tại $(pwd)"
     exit 1
 fi
+
+echo "🚀 Đang xóa hạ tầng MLflow..."
+
+docker compose --env-file .env.dev -f docker-compose.dev.yml down -v
+
+echo "Xóa thành công! Bạn có thể khởi động lại hạ tầng bằng cách chạy scripts/restart_mlflow_srv_dev.sh"

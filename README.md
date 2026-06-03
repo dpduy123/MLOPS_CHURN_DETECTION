@@ -83,7 +83,7 @@ bash scripts/restart_mlflow_srv_dev.sh  # Sau khi chạy lệnh này, bạn có 
 ```python
 py -3.10 -m venv .venv          # Hãy đảm bảo đã tải Python 3.10 về máy
 python -m src.train.dataset     # Tạo file .pkl của pipeline data preprocessing và dataset đã preprocessing phục vụ train
-python -m src.train.train
+python -m src.train.train --data-version v2.0
 ```
 
 ### 5. Gán Alias cho MVP model
@@ -97,4 +97,40 @@ python -m src.train.train
 python tests/mlflow_loadmodel.py
 ```
 
+### 6. Tạo BentoML API
+
+```bash
+Remove-Item -Recurse -Force $HOME\bentoml\bentos    # Xóa hết các BentoML Folder trước đó cho đỡ nặng máy
+
+python deployments/scripts/export_model.py `
+    --tracking-uri "http://localhost:5100" `
+    --model-name "Churn_Predict" `
+    --alias "champion" `
+    --version "1.0.0" `
+    --out-dir "deployments/bentoml/mlflow_artifacts"
+
+Copy-Item -Path "requirements.txt" -Destination "deployments/bentoml/requirements.txt" -Force
+(Get-Content "requirements.txt") | Where-Object { $_ -notmatch "pywin32" -and $_ -notmatch "pypiwin32" } | Set-Content "deployments/bentoml/requirements.txt" -Force
+
+bentoml delete churn-prediction:1.0.0               # Xóa bento:1.0.0 trước đó nếu có
+bentoml build deployments/bentoml --version 1.0.0
+bentoml serve churn-prediction:1.0.0
+
+# Mở 1 terminal khác. Lúc này Bento ML đang được serve ở localhost:3000, hãy test request với file tests/send_req_bentoml.py.
+python tests/send_req_bentoml.py
+```
+
+
+### 7. Đóng gói BentoML thành Docker
+```bash
+bentoml containerize churn-prediction:1.0.0 --verbose --opt progress=plain 
+    # --opt progress=plain: Cho phép in log ra màn hình
+    # --verbose: In mọi log ra màn hình từ lúc build tới lúc kết thúc
+docker run --rm -p 3000:3000 churn-prediction:1.0.0
+    # Nếu gặp lỗi không load được file vì path chứa \\, hãy chạy lệnh sau:
+        #Get-ChildItem -Recurse -Filter "MLmodel" | ForEach-Object {
+        #    (Get-Content $_.FullName) -replace '\\', '/' | Set-Content $_.FullName
+        #}
+
+```
 ---
