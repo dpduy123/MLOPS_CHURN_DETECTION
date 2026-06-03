@@ -1,250 +1,71 @@
-####################################################################
-#  Churn Prediction MLOps Stack
-#  ─────────────────────────────────────────────────────────────────
-#  Services:
-#    bentoml           – inference API (single + batch)
-#    mlflow            – experiment tracking / model registry
-#    evidently-monitor – data drift monitoring + Prometheus metrics
-#    prometheus        – metrics scraping
-#    loki              – log aggregation
-#    promtail          – log shipper (Docker → Loki)
-#    grafana           – dashboards + alerting + email dispatch
-#
-#  Ports (host → container):
-#    3000  → BentoML
-#    5100  → MLflow
-#    8001  → Evidently monitor
-#    9090  → Prometheus
-#    3001  → Grafana
-#    3100  → Loki (internal only)
-#
-#  Email alerts are handled by Grafana (SMTP config via GF_SMTP_* env).
-#  BentoML does NOT send emails.
-####################################################################
-
-version: "3.9"
-
-x-logging: &default-logging
-  driver: json-file
-  options:
-    max-size: "50m"
-    max-file: "5"
-    labels: "service"
-
-networks:
-  mlops:
-    driver: bridge
-
-volumes:
-  mlflow-data:
-  prometheus-data:
-  loki-data:
-  grafana-data:
-  evidently-reports:
-  model-artifacts:
-
+version: '3.8'
 services:
-
-  # ── MLflow Tracking Server ─────────────────────────────────────────────────
-  mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.13.0
-    container_name: mlflow
-    command: >
-      mlflow server
-        --backend-store-uri  sqlite:///mlflow/mlflow.db
-        --default-artifact-root /mlflow/artifacts
-        --host 0.0.0.0
-        --port 5100
-    ports:
-      - "5100:5100"
-    volumes:
-      - mlflow-data:/mlflow
-    networks:
-      - mlops
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5100/health"]
-      interval: 15s
-      timeout:  5s
-      retries:  5
-    logging:
-      <<: *default-logging
-      options:
-        max-size: "50m"
-        max-file: "5"
-        labels: "service"
-    labels:
-      service: mlflow
-      com.docker.compose.project: deployments
-
-  # ── BentoML Churn Prediction Service ──────────────────────────────────────
-  # Image is built by scripts/build.sh (bentoml containerize)
-  bentoml:
-    image: churn-prediction:latest
-    container_name: bentoml
-    depends_on:
-      mlflow:
-        condition: service_healthy
+  churn-prediction:
+    image: churn-prediction:1.0.0
+    container_name: churn-prediction
     ports:
       - "3000:3000"
-    environment:
-      MLFLOW_TRACKING_URI:   http://mlflow:5100
-      MLFLOW_MODEL_URI:      models:/Churn_Predict@champion
-      MODEL_ARTIFACTS_DIR:   /app/model_artifacts
-      LOW_CONF_THRESHOLD:    "0.60"
-      LOW_CONF_STREAK_LIMIT: "200"
-      # Forward prediction logs to Evidently monitor
-      EVIDENTLY_LOG_URL:     http://evidently-monitor:8001/log
-    volumes:
-      - model-artifacts:/app/model_artifacts:ro
-    networks:
-      - mlops
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
-      interval: 15s
-      timeout:  5s
-      retries:  5
-    logging:
-      <<: *default-logging
-      options:
-        max-size: "50m"
-        max-file: "5"
-        labels: "service"
-    labels:
-      service: churn-prediction
-      com.docker.compose.project: deployments
+    restart: unless-stopped
 
-  # ── Evidently AI Monitor ───────────────────────────────────────────────────
-  evidently-monitor:
-    build:
-      context:    ./monitoring/evidently
-      dockerfile: Dockerfile
-    container_name: evidently-monitor
-    ports:
-      - "8001:8001"
-    environment:
-      REFERENCE_DATA_PATH:  /data/reference.parquet
-      REPORTS_DIR:          /reports
-      WINDOW_SIZE:          "500"
-      REPORT_INTERVAL:      "300"
-    volumes:
-      - ./data/reference.parquet:/data/reference.parquet:ro   # mount your reference dataset
-      - evidently-reports:/reports
-    networks:
-      - mlops
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 15s
-      timeout:  5s
-      retries:  3
-    labels:
-      service: evidently-monitor
-      com.docker.compose.project: deployments
-
-  # ── Prometheus ─────────────────────────────────────────────────────────────
   prometheus:
-    image: prom/prometheus:v2.51.2
+    image: prom/prometheus:latest
     container_name: prometheus
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=30d"
-      - "--web.enable-lifecycle"
-    ports:
-      - "9090:9090"
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
-    networks:
-      - mlops
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
-      interval: 15s
-      timeout:  5s
-      retries:  3
-    labels:
-      service: prometheus
-      com.docker.compose.project: deployments
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
 
-  # ── Loki (log storage) ─────────────────────────────────────────────────────
   loki:
-    image: grafana/loki:3.0.0
+    image: grafana/loki:2.8.2
     container_name: loki
-    command: -config.file=/etc/loki/loki-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - ./monitoring/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
-      - loki-data:/loki
-    networks:
-      - mlops
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3100/ready || exit 1"]
-      interval: 15s
-      timeout:  5s
-      retries:  5
-    labels:
-      service: loki
-      com.docker.compose.project: deployments
+      - ./monitoring/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
 
-  # ── Promtail (log shipper) ─────────────────────────────────────────────────
   promtail:
-    image: grafana/promtail:3.0.0
+    image: grafana/promtail:latest
     container_name: promtail
-    command: -config.file=/etc/promtail/promtail-config.yaml
+    command: -config.file=/etc/promtail/config.yml
     volumes:
-      - ./monitoring/promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./monitoring/promtail/promtail-config.yaml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-    depends_on:
-      - loki
-    networks:
-      - mlops
-    labels:
-      service: promtail
-      com.docker.compose.project: deployments
+    environment:
+      - DOCKER_API_VERSION=1.44
+    restart: unless-stopped
 
-  # ── Grafana (dashboards + alerting + email) ────────────────────────────────
   grafana:
-    image: grafana/grafana:11.0.0
+    image: grafana/grafana:9.5.8
     container_name: grafana
-    depends_on:
-      - prometheus
-      - loki
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=${SMTP_HOST}
+      - GF_SMTP_PORT=${SMTP_PORT}
+      - GF_SMTP_USER=${SMTP_USER}
+      - GF_SMTP_PASSWORD=${SMTP_PASSWORD}
+      - GF_SMTP_FROM_ADDRESS=${SMTP_FROM}
+      - ALERT_EMAILS=${ALERT_EMAILS}
+      - GF_SMTP_STARTTLS_POLICY=MandatoryStartTLS
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
     ports:
       - "3001:3000"
-    environment:
-      # ── Admin ──────────────────────────────────────────────────────────────
-      GF_SECURITY_ADMIN_USER:     admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-mlops_secret}
-      GF_SERVER_HTTP_PORT:        3000
+    restart: unless-stopped
 
-      # ── SMTP – fill these in to enable email alerts ─────────────────────
-      # Grafana will use this SMTP config to send emails for ALL alert rules.
-      GF_SMTP_ENABLED:            "true"
-      GF_SMTP_HOST:               ${SMTP_HOST:-smtp.gmail.com:587}
-      GF_SMTP_USER:               ${SMTP_USER:-alerts@company.com}
-      GF_SMTP_PASSWORD:           ${SMTP_PASSWORD:-your_app_password}
-      GF_SMTP_FROM_ADDRESS:       ${SMTP_FROM:-alerts@company.com}
-      GF_SMTP_FROM_NAME:          "Churn MLOps Grafana"
-      GF_SMTP_STARTTLS_POLICY:    MandatoryStartTLS
-
-      # ── Unified Alerting (Grafana-managed alerts, NOT legacy alerting) ──
-      GF_ALERTING_ENABLED:              "false"    # legacy — disabled
-      GF_UNIFIED_ALERTING_ENABLED:      "true"
-      GF_UNIFIED_ALERTING_EXECUTE_ALERTS: "true"
-
-      # ── Provisioning ────────────────────────────────────────────────────
-      GF_PROVISIONING_PATH: /etc/grafana/provisioning
-
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
-    networks:
-      - mlops
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
-      interval: 15s
-      timeout:  5s
-      retries:  5
-    labels:
-      service: grafana
-      com.docker.compose.project: deployments
+volumes:
+  loki_data:
+  grafana_data:
