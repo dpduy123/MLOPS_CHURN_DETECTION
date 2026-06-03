@@ -4,26 +4,47 @@ class BaseModel:
     def fit(self, x, y):
         self.model.fit(x, y)
 
+    def predict_proba(self, x):
+        if hasattr(self.model, "predict_proba"):
+            return self.model.predict_proba(x)[:, 1]
+        else:
+            return self.model.predict(x)
+
+
     def predict(self, x):
         return self.model.predict(x)
 
+
     def save(self, path):
+        # Chỉ dump Sklearn Model chứ không phải BaseModel
         joblib.dump(self.model, path)
+        # Khi load lên, hãy treat như một Sklearn model thông thường
 
     def load(self, path):
         self.model = joblib.load(path)
 
 class BaseSklearnWrapper(mlflow.pyfunc.PythonModel):
     def load_context(self, context):
-        self.preprocess     = joblib.load(context.artifacts["preprocess_path"])
-        self.model          = joblib.load(context.artifacts["model_path"])
-        
-        # Load và parse file YAML
-        with open(context.artifacts["data_schema"], "r") as f:
+        import os
+        import joblib
+        import yaml
+
+        def fix_path(path):
+            return os.path.normpath(path.replace("\\", "/")) if path else None
+
+        # Nạp artifacts
+        self.preprocess = joblib.load(fix_path(context.artifacts.get("preprocess_path")))
+        self.model      = joblib.load(fix_path(context.artifacts.get("model_path")))
+
+        with open(fix_path(context.artifacts.get("data_schema")), "r") as f:
             self.schema = yaml.safe_load(f)
             
-        # Tự động trích xuất tất cả các cột input cần thiết (không bao gồm target)
         self.feature_cols = self._extract_features(self.schema)
+
+    def _ensure_loaded(self, context):
+        """Kiểm tra xem các thuộc tính đã được load chưa, nếu chưa thì load ngay"""
+        if not hasattr(self, 'preprocess'):
+            self.load_context(context)
 
     def _extract_features(self, schema):
         """Hàm helper để gom tất cả các cột input từ file YAML"""
@@ -49,7 +70,15 @@ class BaseSklearnWrapper(mlflow.pyfunc.PythonModel):
         # Chỉ trả về các cột cần thiết, đúng thứ tự
         return model_input[self.feature_cols]
 
-    def predict(self, context, model_input):
+    def predict(self, context, model_input: pd.DataFrame) -> pd.DataFrame:
+        self._ensure_loaded(context)
         validated_input = self._validate_input(model_input)
         processed_input = self.preprocess.transform(validated_input)
-        return self.model.predict(processed_input)
+        
+        # Kiểm tra xem đối tượng model có predict_proba không
+        if hasattr(self.model, "predict_proba"):
+            probs = self.model.predict_proba(processed_input)[:, 1]
+        else:
+            probs = self.model.predict(processed_input).astype(float)
+            
+        return pd.DataFrame({"churn_probability": probs})

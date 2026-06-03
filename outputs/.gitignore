@@ -1,10 +1,11 @@
 transform_weights/*
-model_weights/*
-
-!transform_weights/full_pipeline_1_10.pkl
 !model_weights/knn.pkl
 !model_weights/lgbm.pkl
 !model_weights/logistic.pkl
 !model_weights/poly.pkl
 !model_weights/random_forest.pkl
-!model_weights/best_lgbm_v0.pkl
+
+
+model_weights/*
+!transform_weights/full_pipeline_1_10.pkl
+

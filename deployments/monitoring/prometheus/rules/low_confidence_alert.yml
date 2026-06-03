@@ -1,0 +1,12 @@
+groups:
+  - name: churn_alerts
+    rules:
+      - alert: LowConfidenceStreak
+        expr: churn_low_confidence_streak >= 200
+        for: 5m
+        labels:
+          severity: critical
+          service: churn-prediction
+        annotations:
+          summary: "Low confidence streak on churn-prediction is {{ $value }}"
+          description: "churn_low_confidence_streak is {{ $value }} for more than 5 minutes"

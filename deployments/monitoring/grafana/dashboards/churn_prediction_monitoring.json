@@ -1,0 +1,101 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "iteration": 162343,
+  "links": [],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Request Volume",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "id": 1,
+      "targets": [
+        {
+          "expr": "sum(rate(churn_prediction_requests_total[5m]))",
+          "refId": "A",
+          "datasource": {"type": "prometheus", "uid": "-- Grafana --"}
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Predictions by Label",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 6},
+      "id": 4,
+      "targets": [
+        {"expr": "sum by(label)(rate(churn_prediction_labels_total[5m]))","refId":"A","datasource":{"type":"prometheus","uid":"-- Grafana --"}}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency (p50/p95/p99)",
+      "gridPos": {"x": 12, "y": 4, "w": 6, "h": 10},
+      "id": 5,
+      "targets": [
+        {"expr": "histogram_quantile(0.5, sum(rate(churn_prediction_latency_seconds_bucket[5m])) by (le))","refId":"A","datasource":{"type":"prometheus","uid":"-- Grafana --"}},
+        {"expr": "histogram_quantile(0.95, sum(rate(churn_prediction_latency_seconds_bucket[5m])) by (le))","refId":"B","datasource":{"type":"prometheus","uid":"-- Grafana --"}},
+        {"expr": "histogram_quantile(0.99, sum(rate(churn_prediction_latency_seconds_bucket[5m])) by (le))","refId":"C","datasource":{"type":"prometheus","uid":"-- Grafana --"}}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Batch Processing Rate (5m)",
+      "gridPos": {"x": 0, "y": 14, "w": 12, "h": 6},
+      "id": 6,
+      "targets": [
+        {"expr": "rate(churn_prediction_batch_size_sum[5m])","refId":"A","datasource":{"type":"prometheus","uid":"-- Grafana --"}}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Confidence Distribution (p50/p90)",
+      "gridPos": {"x": 12, "y": 10, "w": 6, "h": 6},
+      "id": 7,
+      "targets": [
+        {"expr":"histogram_quantile(0.5, sum(rate(churn_prediction_confidence_bucket[5m])) by (le))","refId":"A","datasource":{"type":"prometheus","uid":"prom-datasource-uid"}},
+        {"expr":"histogram_quantile(0.9, sum(rate(churn_prediction_confidence_bucket[5m])) by (le))","refId":"B","datasource":{"type":"prometheus","uid":"prom-datasource-uid"}}
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Current Low Confidence Streak",
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "id": 2,
+      "targets": [
+        {
+          "expr": "churn_low_confidence_streak",
+          "refId": "A",
+          "datasource": {"type": "prometheus", "uid": "-- Grafana --"}
+        }
+      ]
+    },
+    {
+        "type": "logs",
+        "title": "Churn Prediction Logs",
+        "gridPos": {"x": 0, "y": 8, "w": 18, "h": 8},
+        "id": 3,
+        "datasource": {   
+            "type": "loki",
+            "uid": "loki-datasource-uid"
+        },
+        "targets": [
+            {
+                "expr": "{compose_service=\"churn-prediction\"}",
+                "refId": "A"
+            }
+        ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": ["churn"],
+  "templating": {"list": []},
+  "timezone": "browser",
+  "title": "Churn Prediction Monitoring",
+  "uid": "churn-prediction-monitoring",
+  "version": 1
+}

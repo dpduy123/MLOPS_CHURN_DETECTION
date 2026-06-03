@@ -1,0 +1,36 @@
+service: "service:ChurnPredictionService"
+name:    churn-prediction
+
+labels:
+  owner:        mlops
+  project:      churn
+  model_alias:  champion
+  model_semver: "1.0.0"
+
+# ── Files bundled into the Bento ──────────────────────────────────────────────
+# mlflow_artifacts/ được copy vào đây bởi scripts/build.sh trước khi build
+include:
+  - "service.py"
+  - "mlflow_artifacts/**"         # offline model + meta.json + code/
+
+# ── Python dependencies ───────────────────────────────────────────────────────
+python:
+  requirements_txt: "requirements.txt"
+  lock_packages: false
+
+# ── Docker image ──────────────────────────────────────────────────────────────
+docker:
+  base_image: "python:3.11-slim"
+
+  env:
+    MLFLOW_TRACKING_URI:    "http://localhost:5100"
+    MLFLOW_MODEL_URI:       "models:/Churn_Predict@champion"
+    LOW_CONF_THRESHOLD:     "0.60"
+    LOW_CONF_STREAK_LIMIT:  "200"
+    CPU:                    "0.5"
+    MEMORY:                 "1Gi"
+
+  # Cài thêm system deps cần cho một số ML libs
+  system_packages:
+    - libgomp1
+    - curl

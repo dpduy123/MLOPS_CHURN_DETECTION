@@ -6,7 +6,12 @@ from pathlib import Path
 
 def test_model_with_json():
     mlflow.set_tracking_uri("http://localhost:5100")
-    MODEL_URI = "models:/Churn_Predict@champion" # hoặc "models:/<Model-ID>" hoặc "models:/Churn_Predict/<version>"
+
+    # Chọn 1 trong các URI sau để test
+    MODEL_URI   = "models:/Churn_Predict@champion"
+    #MODEL_URI  = "models:/m-14e93340e0fc45efb555dbb367f893f3"
+    #MODEL_URI  = "models:/Churn_Predict/1"
+    #MODEL_URI  = "deployments/bentoml/mlflow_artifacts"  # Load trực tiếp từ local artifacts (không cần MLflow server) --- chỉ test cho trường hợp build xong nhưng chưa push model lên MLflow server, hoặc muốn test với model offline đã có sẵn.
 
     print(f"--- Đang tải model từ: {MODEL_URI} ---")
     model = mlflow.pyfunc.load_model(MODEL_URI)
@@ -35,6 +40,7 @@ def test_model_with_json():
     predictions = model.predict(df)
     print(f"\n--- Kết quả dự đoán ---")
     print(type(predictions))
+    print(predictions)
     for i, pred in enumerate(predictions):
         print(f"Row {i+1}: Churn = {pred} ({'Có churn' if pred == 1 else 'Không churn'})")
 

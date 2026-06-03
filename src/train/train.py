@@ -1,5 +1,6 @@
 import os
-import argparse, mlflow, optuna, pandas as pd
+import argparse, mlflow, optuna, pandas as pd, shutil, tempfile
+from datetime import datetime
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from src.models import WRAPPER_MAP, LogisticModel, PolyModel, RandomForestModel, KNNModel, LGBMModel
@@ -74,14 +75,15 @@ def train_and_optimize(
     y_test, 
     n_trials
 ):
-    parent_run_name = f"{model_name}_{data_version}"
+    timestamp       = datetime.now().strftime("%Y%m%d_%H%M%S")
+    parent_run_name = f"{model_name}_{data_version}_{timestamp}"
     with mlflow.start_run(run_name=parent_run_name) as parent_run:
         mlflow.set_tags({"data_version": data_version, "model_type": model_name})
 
         def objective(trial):
             model, params = get_model_and_params(model_name, trial)
 
-            with mlflow.start_run(run_name=f"Trial_{trial.number}", nested=True):
+            with mlflow.start_run(run_name=f"{model_name}_trial_{trial.number}", nested=True):
                 mlflow.log_params(params)
                 
                 model.fit(X_train, y_train)
@@ -97,43 +99,74 @@ def train_and_optimize(
         mlflow.log_params({f"best_{k}": v for k, v in study.best_params.items()})
         mlflow.log_metric("best_f1_score", study.best_value)
 
-        best_model, _ = get_model_and_params(model_name, study.best_trial)
+        best_model, _   = get_model_and_params(model_name, study.best_trial)
         best_model.fit(X_train, y_train)
 
         OUTPUTS_ROOT.mkdir(parents=True, exist_ok=True)
-        model_path = OUTPUTS_ROOT / "model_weights" / f"best_{model_name}_{data_version}.pkl"
+        model_path      = OUTPUTS_ROOT / "model_weights" / f"best_{model_name}_{data_version}.pkl"
         best_model.save(str(model_path))
 
-        sample_input  = raw_data.drop(columns=["Churn", "CustomerID"]).head(1)  # raw, chưa encode
-        sample_output = best_model.predict(X_test.head(1))                       # predict vẫn dùng processed
-        signature     = infer_signature(sample_input, sample_output)
-        print("sample_input columns:", sample_input.columns.tolist())  # ← thêm dòng này
+        model_wrapper   = WRAPPER_MAP[model_name]()
+        sample_input    = raw_data.drop(columns=["Churn", "CustomerID"]).head(1)    # raw, chưa encode
+        sample_output   = best_model.predict(X_test.head(1))                        # predict vẫn dùng processed
+        signature       = infer_signature(sample_input, sample_output)
+
+        print("sample_input columns:", sample_input.columns.tolist()) 
         print(sample_input)
 
-        mlflow.pyfunc.log_model(
-            artifact_path       = "model",
-            code_paths          = [str(PROJECT_ROOT / "src")],            
-            python_model        = WRAPPER_MAP[model_name](),
-            input_example       = sample_input,
-            signature           = signature,
-            artifacts           = {
-                "model_path":       str(model_path),
-                "preprocess_path":  str(PROJECT_ROOT / "outputs" / "transform_weights" / f"full_pipeline_1_10.pkl"),
-                "data_schema":      str(DATA_SCHEMA_PATH)
-            },
-            pip_requirements    = ["scikit-learn", "pandas", "pyyaml", "lightgbm"]
-        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            try:
+                print(f"--- Đang kiểm tra (validate) model tại {tmp_dir} ---")
+                
+                # Lưu thử vào thư mục tạm
+                mlflow.pyfunc.save_model(
+                    path=tmp_dir,
+                    python_model=model_wrapper,
+                    artifacts={
+                        "model_path": str(model_path),
+                        "preprocess_path": str(PROJECT_ROOT / "outputs" / "transform_weights" / f"full_pipeline_1_10.pkl"),
+                        "data_schema": str(DATA_SCHEMA_PATH)
+                    }
+                )   
+            
+                loaded_model = mlflow.pyfunc.load_model(tmp_dir)
 
-        print(f"-> Đã log model {model_name} thành công.")
+                sample_input = raw_data.drop(columns=["Churn", "CustomerID"]).head(1)
+                sample_prediction = loaded_model.predict(sample_input)
+                print("✅ Prediction test thành công! Kết quả: {}".format(sample_prediction))
+                print("✅ Mlflow load_model validation thành công ! Bắt đầu log lên MLFlow.")
+
+                artifacts = {
+                    "model_path":      str(model_path).replace("\\", "/"),
+                    "preprocess_path": str(PROJECT_ROOT / "outputs" / "transform_weights" / f"full_pipeline_1_10.pkl").replace("\\", "/"),
+                    "data_schema":     str(DATA_SCHEMA_PATH).replace("\\", "/")
+                }
+
+                mlflow.pyfunc.log_model(
+                    artifact_path       = "model",
+                    code_paths          = [str(PROJECT_ROOT / "src")],            
+                    python_model        = model_wrapper,
+                    input_example       = sample_input,
+                    signature           = signature,
+                    artifacts           = artifacts,
+                    pip_requirements    = ["scikit-learn", "pandas", "pyyaml", "lightgbm"]
+                )
+
+                print(f"-> Đã log model {model_name} thành công.")
+
+            except Exception as e:
+                print(f"❌ CẢNH BÁO: Model validation thất bại, không log lên MLFlow!")
+                print(f"Chi tiết lỗi: {e}")
+                raise e
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--version", type=str, default="v1")
+    parser.add_argument("--data-version", type=str, default="v2.0")
     args = parser.parse_args()
 
 
     mlflow.set_tracking_uri("http://localhost:5100")
-    experiment_name = f"Churn_Prediction_{args.version}"
+    experiment_name = f"Churn_Prediction_data{args.data_version}"
     mlflow.set_experiment(experiment_name)
     
     # Sử dụng ChurnDataset đã refactor với schema
@@ -149,18 +182,18 @@ def main():
     print(raw_data.head(1))
 
     models_to_run = [
-        ("logistic", LogisticModel, 2),
-        ("lgbm", LGBMModel, 2),
-        #("random_forest", RandomForestModel, 2),
-        #("knn", KNNModel, 2),      
+        ("knn", KNNModel, 2),      
+        #("logistic", LogisticModel, 2),
         #("poly", PolyModel, 2),        
+        #("random_forest", RandomForestModel, 2),
+        #("lgbm", LGBMModel, 2),
     ]
 
 
     for name, cls, trials in models_to_run:
         train_and_optimize(
             model_name=name, 
-            data_version=args.version, 
+            data_version=args.data_version, 
             raw_data=raw_data,
             X_train=X_train, 
             X_test=X_test, 

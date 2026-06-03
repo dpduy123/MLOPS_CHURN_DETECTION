@@ -1,0 +1,1 @@
+{"input": {"dataframe_split": {"columns": ["CustomerID","Age","Gender","Tenure","Usage Frequency","Support Calls","Payment Delay","Subscription Type","Contract Length","Total Spend","Last Interaction"], "data": [[2.0,30.0,"Female",39.0,14.0,5.0,18.0,"Standard","Annual",932.0,17.0]]}}}

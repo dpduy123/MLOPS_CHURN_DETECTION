@@ -1,0 +1,6 @@
+apiVersion: 1
+notificationPolicies:
+  - uid: default_policy
+    name: Default Policy
+    receiver: smtp_cp
+    isDefault: true
