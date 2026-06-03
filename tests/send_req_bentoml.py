@@ -75,7 +75,7 @@ def test_predict_single():
     )
     assert r.status_code == 200, f"Predict failed: {r.text}"
     result = r.json()
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    
     print(f"  Prediction: {result['predictions'][0]} → {result['labels'][0]}")
     assert result["row_count"] == 1
     print("✅ OK")
