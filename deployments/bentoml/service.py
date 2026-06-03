@@ -33,58 +33,35 @@ import mlflow
 import mlflow.pyfunc
 import numpy as np
 import pandas as pd
-from prometheus_client import (
-    Counter,
-    Gauge,
-    Histogram,
-    generate_latest,
-    CONTENT_TYPE_LATEST,
-)
+from prometheus_client import (Counter, Gauge, Histogram, generate_latest, CONTENT_TYPE_LATEST,)
 from pydantic import BaseModel
 
+BASE_DIR = Path(__file__).parent.resolve()
+
+# ─── Compute Config ───────────────────────────────────────────────────────────────
+CPU = os.getenv("CPU", "0.5")
+MEMORY = os.getenv("MEMORY", "1Gi")
+
 # ─── Config ───────────────────────────────────────────────────────────────────
-MLFLOW_TRACKING_URI   = os.getenv("MLFLOW_TRACKING_URI",  "http://mlflow:5100")
-MODEL_URI             = os.getenv("MLFLOW_MODEL_URI",      "models:/Churn_Predict@champion")
-MODEL_ARTIFACTS_DIR   = os.getenv("MODEL_ARTIFACTS_DIR",   "/app/model_artifacts")
-LOW_CONF_THRESHOLD    = float(os.getenv("LOW_CONF_THRESHOLD", "0.60"))
-LOW_CONF_STREAK_LIMIT = int(os.getenv("LOW_CONF_STREAK_LIMIT", "200"))
+MODEL_ARTIFACTS_DIR     = str(BASE_DIR / "mlflow_artifacts")
+MLFLOW_TRACKING_URI     = os.getenv("MLFLOW_TRACKING_URI",  "http://mlflow:5100")
+MODEL_URI               = os.getenv("MLFLOW_MODEL_URI", "models:/Churn_Predict@champion") # Fallback load model từ MLflow server nếu không có local artifacts.  Cũng trả về trong /healthz để tham khảo.
+LOW_CONF_THRESHOLD      = float(os.getenv("LOW_CONF_THRESHOLD", "0.60"))
+LOW_CONF_STREAK_LIMIT   = int(os.getenv("LOW_CONF_STREAK_LIMIT", "200"))
 
 # ─── Prometheus metrics ───────────────────────────────────────────────────────
-REQUEST_COUNTER   = Counter(
-    "churn_prediction_requests_total",
-    "Total number of prediction requests",
-    ["endpoint"],              # predict | predict_batch
-)
-PREDICTION_COUNTER = Counter(
-    "churn_prediction_labels_total",
-    "Predictions by label",
-    ["label"],                 # churn | no_churn
-)
-CONFIDENCE_HIST   = Histogram(
-    "churn_prediction_confidence",
-    "Distribution of max-confidence scores per row",
-    buckets=[0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 1.0],
-)
-LATENCY_HIST      = Histogram(
-    "churn_prediction_latency_seconds",
-    "End-to-end prediction latency",
-    ["endpoint"],
-)
-LOW_CONF_STREAK   = Gauge(
-    "churn_low_confidence_streak",
-    "Current streak of consecutive requests with max-confidence < threshold",
-)
-BATCH_SIZE_HIST   = Histogram(
-    "churn_prediction_batch_size",
-    "Number of rows per batch request",
-    buckets=[1, 2, 5, 10, 20, 50, 100, 200, 500],
-)
+REQUEST_COUNTER         = Counter("churn_prediction_requests_total", "Tổng số lượng request dự đoán đã nhận", ["endpoint"])
+PREDICTION_COUNTER      = Counter("churn_prediction_labels_total", "Tổng số kết quả dự đoán phân loại theo nhãn", ["label"])
+CONFIDENCE_HIST         = Histogram("churn_prediction_confidence", "Phân bổ điểm độ tự tin trên mỗi dòng dữ liệu", buckets=[0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 1.0])
+LATENCY_HIST            = Histogram("churn_prediction_latency_seconds", "Độ trễ xử lý dự đoán (tính theo giây)", ["endpoint"])
+BATCH_SIZE_HIST         = Histogram("churn_prediction_batch_size", "Số lượng dòng dữ liệu trong mỗi request batch", buckets=[1, 2, 5, 10, 20, 50, 100, 200, 500])
+LOW_CONF_STREAK         = Gauge("churn_low_confidence_streak", "Chuỗi request liên tiếp có độ tự tin thấp hơn ngưỡng quy định")
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────
 class DataframeSplit(BaseModel):
-    columns : List[str]
-    data    : List[List[Any]]
-    index   : List[Any] | None = None
+    columns         : List[str]
+    data            : List[List[Any]]
+    index           : List[Any] | None = None
 
 class PredictRequest(BaseModel):
     dataframe_split : DataframeSplit
@@ -104,9 +81,17 @@ class PredictionResult(BaseModel):
 # ─── Streak tracker (thread-safe) ────────────────────────────────────────────
 class StreakTracker:
     """
-    Tracks a rolling window of the last LOW_CONF_STREAK_LIMIT requests.
-    A 'low-confidence request' = all rows in that request had max-proba < threshold.
-    Streak resets the moment ONE request contains at least one row ≥ threshold.
+    Theo dõi một chuỗi các request gần nhất để giám sát độ tin cậy của mô hình.
+    
+    Cơ chế hoạt động:
+    - 'Request độ tin cậy thấp' = Tất cả các dòng dữ liệu trong một request đều có 
+      xác suất dự đoán lớn nhất (max-proba) < ngưỡng (threshold).
+    
+    - 'Streak' (Chuỗi): Đếm số lượng request liên tiếp đạt trạng thái 'độ tin cậy thấp'.
+    
+    - Nguyên tắc reset:
+      Chuỗi này sẽ bị reset về 0 ngay lập tức nếu xuất hiện MỘT request bất kỳ 
+      chứa ít nhất một dòng dữ liệu có độ tin cậy ≥ threshold.
     """
     def __init__(self, limit: int, threshold: float):
         self._limit     = limit
@@ -141,7 +126,7 @@ def _load_model():
     """
     Try local artifacts first (offline / pre-exported), fall back to MLflow server.
     """
-    local_model_dir = Path(MODEL_ARTIFACTS_DIR) / "model"
+    local_model_dir = Path(MODEL_ARTIFACTS_DIR) 
     if local_model_dir.exists():
         print(f"[BentoML] Loading model from LOCAL artifacts: {local_model_dir}")
         model = mlflow.pyfunc.load_model(str(local_model_dir))
@@ -160,36 +145,23 @@ def _load_model():
 
 
 def _predict_df(model, df: pd.DataFrame):
-    """
-    Run inference.  Returns (preds, confidences).
-    Works whether the underlying flavour exposes predict_proba or not.
-    """
-    raw = model.predict(df)
-    preds = [int(p) for p in raw]
+    raw = model.predict(df) # -> Expected là một DataFrame có cột "churn_probability".
 
-    # Try to get probabilities via the unwrapped sklearn model
-    confidences: list[float] = []
-    try:
-        unwrapped = model._model_impl.python_model         # MLflow PythonModel
-        proba = unwrapped.predict_proba(df)
-        confidences = [float(np.max(row)) for row in proba]
-    except Exception:
-        try:
-            # sklearn flavour
-            sk_model = model._model_impl
-            proba = sk_model.predict_proba(df)
-            confidences = [float(np.max(row)) for row in proba]
-        except Exception:
-            # Fallback: binary → confidence = 1 if certain, else 0.5
-            confidences = [1.0 if p in (0, 1) else 0.5 for p in preds]
-
+    # Kiểm tra lại xem raw là DataFrame hay cái gì khác, rồi xử lí dần
+    if raw is None:
+        raise ValueError("Model prediction returned None")
+    elif isinstance(raw, pd.DataFrame):         confidences = raw["churn_probability"].tolist() # DataFrame có cột "churn_probability" thì lấy ra trải thành list()
+    elif hasattr(raw, "ndim") and raw.ndim > 1: confidences = raw[:, 1].tolist()                # # Xử lý numpy array (ví dụ predict_proba trả về mảng 2D)
+    else:                                       confidences = raw.tolist()                      # Fallback cho list hoặc 1D array
+    
+    confidences = [float(p) for p in confidences]
+    preds       = [1 if p >= 0.5 else 0 for p in confidences]
     return preds, confidences
-
 
 # ─── BentoML Service ──────────────────────────────────────────────────────────
 @bentoml.service(
     name="churn_prediction_service",
-    resources={"cpu": "2"},
+    resources={"cpu": CPU, "memory": MEMORY},
     traffic={"timeout": 60},
     http={
         "cors": {
@@ -215,15 +187,15 @@ class ChurnPredictionService:
         labels             = ["Rời bỏ" if p == 1 else "Không rời" for p in preds]
         streak             = _streak_tracker.record(confidences)
 
-        # Prometheus
+        # Prometheus: Lưu các biến vào RAM chờ Prometheus scrape, không có I/O nào khác trong code này.
         REQUEST_COUNTER.labels(endpoint="predict").inc()
+        LATENCY_HIST.labels(endpoint="predict").observe(time.perf_counter() - t0)
+        BATCH_SIZE_HIST.observe(len(preds))
         for lbl, conf in zip(labels, confidences):
             key = "churn" if lbl == "Rời bỏ" else "no_churn"
             PREDICTION_COUNTER.labels(label=key).inc()
             CONFIDENCE_HIST.observe(conf)
-        LATENCY_HIST.labels(endpoint="predict").observe(time.perf_counter() - t0)
-        BATCH_SIZE_HIST.observe(len(preds))
-
+        
         return PredictionResult(
             predictions=preds,
             labels=labels,
@@ -240,21 +212,22 @@ class ChurnPredictionService:
         Incoming requests are queued and dispatched together (up to 512 rows,
         max wait 500 ms) before a single model.predict() call.
         """
-        t0    = time.perf_counter()
-        split = input.dataframe_split
-        df    = pd.DataFrame(split.data, columns=split.columns, index=split.index)
+        t0                  = time.perf_counter()
+        split               = input.dataframe_split
+        df                  = pd.DataFrame(split.data, columns=split.columns, index=split.index)
 
-        preds, confidences = _predict_df(self.model, df)
-        labels             = ["Rời bỏ" if p == 1 else "Không rời" for p in preds]
-        streak             = _streak_tracker.record(confidences)
+        preds, confidences  = _predict_df(self.model, df)
+        labels              = ["Rời bỏ" if p == 1 else "Không rời" for p in preds]
+        streak              = _streak_tracker.record(confidences)
 
         REQUEST_COUNTER.labels(endpoint="predict_batch").inc()
+        LATENCY_HIST.labels(endpoint="predict_batch").observe(time.perf_counter() - t0)
+        BATCH_SIZE_HIST.observe(len(preds))
         for lbl, conf in zip(labels, confidences):
             key = "churn" if lbl == "Rời bỏ" else "no_churn"
             PREDICTION_COUNTER.labels(label=key).inc()
             CONFIDENCE_HIST.observe(conf)
-        LATENCY_HIST.labels(endpoint="predict_batch").observe(time.perf_counter() - t0)
-        BATCH_SIZE_HIST.observe(len(preds))
+
 
         return PredictionResult(
             predictions=preds,
