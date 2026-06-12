@@ -134,3 +134,33 @@ docker run --rm -p 3000:3000 churn-prediction:1.0.0
 
 ```
 ---
+
+### 8. Triển khai lên Kubernetes (Bổ sung cho học phần thực hành)
+
+Để đáp ứng yêu cầu của học phần thực hành, toàn bộ hệ thống (bao gồm API BentoML và stack giám sát Monitoring) đã được cấu hình để có thể triển khai trên môi trường **Kubernetes (K8s)** thay vì chỉ dùng Docker Compose. 
+Các file cấu hình chuẩn của K8s (Deployment, Service, DaemonSet, PersistentVolumeClaim) được đặt trong thư mục `k8s/`.
+
+**Các thành phần đã được tích hợp lên K8s:**
+- **BentoML (`k8s/bentoml.yaml`)**: Triển khai API dự đoán mô hình với khả năng chạy nhiều bản sao (replicas) để chịu tải và cấu hình livenessProbe giúp tự động phục hồi khi có lỗi.
+- **Hệ thống Monitoring**:
+  - **Prometheus & Grafana (`k8s/prometheus.yaml`, `k8s/grafana.yaml`)**: Thu thập metric và hiển thị dashboard. Sử dụng Persistent Volume (PVC) để bảo toàn dữ liệu.
+  - **Loki & Promtail (`k8s/loki.yaml`, `k8s/promtail.yaml`)**: Quản lý log tập trung. Promtail được cấu hình chạy dưới dạng DaemonSet để tự động thu thập log từ mọi container trên các node.
+
+**Cách chạy trên máy tính cá nhân (Yêu cầu cài đặt Minikube hoặc Docker Desktop tích hợp K8s):**
+
+1. Tạo ConfigMaps từ các file cấu hình hiện có của dự án:
+   ```bash
+   chmod +x k8s/setup-configmaps.sh
+   ./k8s/setup-configmaps.sh
+   ```
+2. Khởi chạy toàn bộ hệ thống lên K8s cluster:
+   ```bash
+   kubectl apply -f k8s/
+   ```
+3. Kiểm tra trạng thái chạy:
+   ```bash
+   kubectl get pods
+   kubectl get svc
+   ```
+
+---
