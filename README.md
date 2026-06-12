@@ -141,26 +141,54 @@ docker run --rm -p 3000:3000 churn-prediction:1.0.0
 Các file cấu hình chuẩn của K8s (Deployment, Service, DaemonSet, PersistentVolumeClaim) được đặt trong thư mục `k8s/`.
 
 **Các thành phần đã được tích hợp lên K8s:**
-- **BentoML (`k8s/bentoml.yaml`)**: Triển khai API dự đoán mô hình với khả năng chạy nhiều bản sao (replicas) để chịu tải và cấu hình livenessProbe giúp tự động phục hồi khi có lỗi.
+- **BentoML (`k8s/bentoml.yaml`)**: Triển khai API dự đoán mô hình với khả năng chạy nhiều bản sao (replicas) để chịu tải và cấu hình `livenessProbe` giúp tự động phục hồi khi có lỗi.
 - **Hệ thống Monitoring**:
   - **Prometheus & Grafana (`k8s/prometheus.yaml`, `k8s/grafana.yaml`)**: Thu thập metric và hiển thị dashboard. Sử dụng Persistent Volume (PVC) để bảo toàn dữ liệu.
   - **Loki & Promtail (`k8s/loki.yaml`, `k8s/promtail.yaml`)**: Quản lý log tập trung. Promtail được cấu hình chạy dưới dạng DaemonSet để tự động thu thập log từ mọi container trên các node.
 
-**Cách chạy trên máy tính cá nhân (Yêu cầu cài đặt Minikube hoặc Docker Desktop tích hợp K8s):**
+#### Hướng dẫn triển khai trên Server Ubuntu (Sử dụng K3s)
 
-1. Tạo ConfigMaps từ các file cấu hình hiện có của dự án:
-   ```bash
-   chmod +x k8s/setup-configmaps.sh
-   ./k8s/setup-configmaps.sh
-   ```
-2. Khởi chạy toàn bộ hệ thống lên K8s cluster:
-   ```bash
-   kubectl apply -f k8s/
-   ```
-3. Kiểm tra trạng thái chạy:
-   ```bash
-   kubectl get pods
-   kubectl get svc
-   ```
+**Bước 1: Cài đặt K3s (Kubernetes siêu nhẹ)**
+```bash
+curl -sfL https://get.k3s.io | sh -
+# Cấp quyền đọc file cấu hình cho user hiện tại để tránh lỗi Permission Denied
+sudo chmod 644 /etc/rancher/k3s/k3s.yaml
+```
+
+**Bước 2: Cung cấp Docker Image cho hệ thống K3s**
+Do Server Ubuntu mới cài đặt sẽ không có sẵn Image `churn-prediction:1.0.0` (được tạo ra ở bước Local), bạn cần nạp image này vào máy chủ bằng một trong hai cách:
+- **Cách 1 (Khuyên dùng)**: Push image từ máy cá nhân lên Docker Hub, sau đó sửa tag `image:` trong `k8s/bentoml.yaml` thành tên Repo trên Docker Hub của bạn.
+- **Cách 2**: Build lại trực tiếp trên máy chủ và nạp vào K3s (Yêu cầu máy chủ cài sẵn `docker-buildx-plugin`):
+  ```bash
+  bentoml containerize churn-prediction:1.0.0
+  docker save churn-prediction:1.0.0 -o churn.tar
+  sudo k3s ctr images import churn.tar
+  ```
+
+**Bước 3: Nạp file cấu hình và Khởi chạy cụm K8s**
+```bash
+# 1. Chạy script để nạp các file config local (prometheus.yml, grafana.ini) thành K8s ConfigMap
+chmod +x k8s/setup-configmaps.sh
+./k8s/setup-configmaps.sh
+
+# 2. Yêu cầu K8s khởi tạo toàn bộ Pods, Services, PVCs
+kubectl apply -f k8s/
+```
+
+**Bước 4: Kiểm tra và Truy cập hệ thống**
+Đợi khoảng 1-2 phút và kiểm tra xem toàn bộ các thành phần đã báo `Running` chưa:
+```bash
+kubectl get pods
+```
+
+**BentoML API:** (Sử dụng lệnh Port-Forward do API đang được bảo mật qua ClusterIP)
+```bash
+kubectl port-forward --address 0.0.0.0 svc/churn-prediction 3000:3000
+# Truy cập giao diện Swagger UI tại: http://<IP_CỦA_SERVER>:3000/
+```
+
+**Hệ thống Monitoring:** (Đã được cấu hình tự động mở port qua NodePort)
+- **Grafana Dashboard**: `http://<IP_CỦA_SERVER>:30001` (Tài khoản mặc định: `admin`/`admin`)
+- **Prometheus Metric**: `http://<IP_CỦA_SERVER>:30090`
 
 ---
