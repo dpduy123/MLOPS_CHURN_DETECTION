@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: churn-prediction
+  labels:
+    app: churn-prediction
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: churn-prediction
+  template:
+    metadata:
+      labels:
+        app: churn-prediction
+    spec:
+      containers:
+      - name: churn-prediction
+        image: churn-prediction:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: churn-prediction
+spec:
+  selector:
+    app: churn-prediction
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: ClusterIP
